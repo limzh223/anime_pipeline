@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Anime Data Platform
 
 Initial architecture:
@@ -18,3 +19,6 @@ Databricks Bronze (Delta)
 - `airflow/include/validation/` - source validation
 - `databricks/bronze/` - Bronze ingestion logic
 - `tests/` - tests
+=======
+# anime_pipeline
+>>>>>>> 7e74dacf048f1da6f78b50eee04e955c43d461bc
