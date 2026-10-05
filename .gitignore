@@ -1,0 +1,31 @@
+# Secrets
+airflow/.env
+.env
+.env.*
+
+# Keep example environment file
+!airflow/.env.example
+
+# Airflow runtime files
+airflow/logs/
+airflow/airflow.db
+airflow/standalone_admin_password.txt
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temp
+*.log
+*.tmp
