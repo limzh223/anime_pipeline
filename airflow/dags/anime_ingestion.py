@@ -1,20 +1,27 @@
 from airflow import DAG
 from airflow.decorators import task
 from datetime import datetime, timedelta
-import os
 
-from include.clients.tenrai_client import fetch_tenrai_anime
-from include.clients.anilist_client import fetch_anilist_anime
-from include.clients.tmdb_client import fetch_tmdb_anime
-from include.clients.imdb_client import download_imdb_dataset
-
-from include.storage.s3 import (
-    upload_json_to_s3,
-    upload_file_to_s3,
+from include.clients.tenrai_client import (
+    fetch_tenrai_anime,
 )
 
+from include.clients.anilist_client import (
+    fetch_anilist_anime,
+)
 
-S3_BUCKET = os.getenv("S3_BUCKET")
+from include.clients.tmdb_client import (
+    fetch_tmdb_anime,
+)
+
+from include.clients.imdb_client import (
+    download_imdb_dataset,
+)
+
+from include.storage.databricks import (
+    upload_json_to_databricks,
+    upload_file_to_databricks,
+)
 
 
 default_args = {
@@ -33,75 +40,70 @@ with DAG(
     tags=[
         "anime",
         "ingestion",
-        "minio",
+        "databricks",
     ],
 ) as dag:
 
     @task
-    def tenrai_to_minio(ds=None):
+    def tenrai_to_databricks(ds=None):
+
         payload = fetch_tenrai_anime()
 
         payload["ingestion_date"] = ds
 
-        key = (
-            f"raw/tenrai/"
+        path = (
+            f"tenrai/"
             f"ingestion_date={ds}/"
             f"anime.json"
         )
 
-        upload_json_to_s3(
+        return upload_json_to_databricks(
             payload=payload,
-            bucket=S3_BUCKET,
-            key=key,
+            path=path,
         )
-
-        return key
 
 
     @task
-    def anilist_to_minio(ds=None):
+    def anilist_to_databricks(ds=None):
+
         payload = fetch_anilist_anime()
 
         payload["ingestion_date"] = ds
 
-        key = (
-            f"raw/anilist/"
+        path = (
+            f"anilist/"
             f"ingestion_date={ds}/"
             f"anime.json"
         )
 
-        upload_json_to_s3(
+        return upload_json_to_databricks(
             payload=payload,
-            bucket=S3_BUCKET,
-            key=key,
+            path=path,
         )
-
-        return key
 
 
     @task
-    def tmdb_to_minio(ds=None):
+    def tmdb_to_databricks(ds=None):
+
         payload = fetch_tmdb_anime()
 
         payload["ingestion_date"] = ds
 
-        key = (
-            f"raw/tmdb/"
+        path = (
+            f"tmdb/"
             f"ingestion_date={ds}/"
             f"anime.json"
         )
 
-        upload_json_to_s3(
+        return upload_json_to_databricks(
             payload=payload,
-            bucket=S3_BUCKET,
-            key=key,
+            path=path,
         )
-
-        return key
 
 
     @task
-    def imdb_to_minio(ds=None):
+    def imdb_to_databricks(ds=None):
+
         datasets = [
             "title_basics",
             "title_ratings",
@@ -110,30 +112,32 @@ with DAG(
         uploaded_files = []
 
         for dataset in datasets:
+
             file_path = download_imdb_dataset(
                 dataset
             )
 
-            key = (
-                f"raw/imdb/"
+            path = (
+                f"imdb/"
                 f"ingestion_date={ds}/"
                 f"{dataset}.tsv.gz"
             )
 
-            upload_file_to_s3(
-                file_path=file_path,
-                bucket=S3_BUCKET,
-                key=key,
+            uploaded_path = (
+                upload_file_to_databricks(
+                    file_path=file_path,
+                    path=path,
+                )
             )
 
             uploaded_files.append(
-                key
+                uploaded_path
             )
 
         return uploaded_files
 
 
-    tenrai_task = tenrai_to_minio()
-    anilist_task = anilist_to_minio()
-    tmdb_task = tmdb_to_minio()
-    imdb_task = imdb_to_minio()
+    tenrai_task = tenrai_to_databricks()
+    anilist_task = anilist_to_databricks()
+    tmdb_task = tmdb_to_databricks()
+    imdb_task = imdb_to_databricks()
