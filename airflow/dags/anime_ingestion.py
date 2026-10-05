@@ -1,6 +1,7 @@
 from airflow import DAG
 from airflow.decorators import task
 from datetime import datetime, timedelta
+import os
 
 from include.clients.tenrai_client import (
     fetch_tenrai_anime,
@@ -21,6 +22,10 @@ from include.clients.imdb_client import (
 from include.storage.databricks import (
     upload_json_to_databricks,
     upload_file_to_databricks,
+)
+
+from include.databricks.jobs import (
+    run_databricks_job,
 )
 
 
@@ -46,7 +51,6 @@ with DAG(
 
     @task
     def tenrai_to_databricks(ds=None):
-
         payload = fetch_tenrai_anime()
 
         payload["ingestion_date"] = ds
@@ -65,7 +69,6 @@ with DAG(
 
     @task
     def anilist_to_databricks(ds=None):
-
         payload = fetch_anilist_anime()
 
         payload["ingestion_date"] = ds
@@ -84,7 +87,6 @@ with DAG(
 
     @task
     def tmdb_to_databricks(ds=None):
-
         payload = fetch_tmdb_anime()
 
         payload["ingestion_date"] = ds
@@ -103,7 +105,6 @@ with DAG(
 
     @task
     def imdb_to_databricks(ds=None):
-
         datasets = [
             "title_basics",
             "title_ratings",
@@ -112,7 +113,6 @@ with DAG(
         uploaded_files = []
 
         for dataset in datasets:
-
             file_path = download_imdb_dataset(
                 dataset
             )
@@ -137,7 +137,71 @@ with DAG(
         return uploaded_files
 
 
+    @task
+    def bronze_layer(ds=None):
+        job_id = os.getenv(
+            "DATABRICKS_BRONZE_JOB_ID"
+        )
+
+        if not job_id:
+            raise ValueError(
+                "DATABRICKS_BRONZE_JOB_ID is not set"
+            )
+
+        return run_databricks_job(
+            job_id=int(job_id),
+            ingestion_date=ds,
+        )
+
+
+    @task
+    def silver_layer(ds=None):
+        job_id = os.getenv(
+            "DATABRICKS_SILVER_JOB_ID"
+        )
+
+        if not job_id:
+            raise ValueError(
+                "DATABRICKS_SILVER_JOB_ID is not set"
+            )
+
+        return run_databricks_job(
+            job_id=int(job_id),
+            ingestion_date=ds,
+        )
+
+
+    @task
+    def gold_layer():
+        job_id = os.getenv(
+            "DATABRICKS_GOLD_JOB_ID"
+        )
+
+        if not job_id:
+            raise ValueError(
+                "DATABRICKS_GOLD_JOB_ID is not set"
+            )
+
+        return run_databricks_job(
+            job_id=int(job_id),
+        )
+
+
     tenrai_task = tenrai_to_databricks()
     anilist_task = anilist_to_databricks()
     tmdb_task = tmdb_to_databricks()
     imdb_task = imdb_to_databricks()
+
+    bronze_task = bronze_layer()
+    silver_task = silver_layer()
+    gold_task = gold_layer()
+
+
+    [
+        tenrai_task,
+        anilist_task,
+        tmdb_task,
+        imdb_task,
+    ] >> bronze_task
+
+    bronze_task >> silver_task >> gold_task
