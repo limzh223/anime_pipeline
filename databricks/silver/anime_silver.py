@@ -48,6 +48,7 @@ def merge_to_silver(
         )
 
     else:
+
         (
             source_df.write
             .format("delta")
@@ -69,6 +70,7 @@ tenrai_bronze = (
 
 tenrai_silver = (
     tenrai_bronze
+
     .select(
         col("anime.mal_id")
         .cast("long")
@@ -223,6 +225,7 @@ anilist_bronze = (
 
 anilist_silver = (
     anilist_bronze
+
     .select(
         col("anime.id")
         .cast("long")
@@ -380,6 +383,7 @@ tmdb_bronze = (
 
 tmdb_silver = (
     tmdb_bronze
+
     .select(
         col("anime.id")
         .cast("long")
@@ -442,6 +446,11 @@ tmdb_silver = (
     )
 
     .withColumn(
+        "original_title",
+        trim(col("original_title"))
+    )
+
+    .withColumn(
         "description",
         trim(col("description"))
     )
@@ -455,7 +464,9 @@ tmdb_silver = (
 
     .withColumn(
         "release_date",
-        to_date(col("release_date"))
+        to_date(
+            col("release_date")
+        )
     )
 
     .withColumn(
@@ -464,6 +475,17 @@ tmdb_silver = (
         .cast("string")
         .substr(1, 4)
         .cast("int")
+    )
+
+    .withColumn(
+        "release_decade",
+        when(
+            col("year").isNotNull(),
+            (
+                (col("year") / 10)
+                .cast("int") * 10
+            )
+        )
     )
 
     .withColumn(
@@ -496,6 +518,7 @@ imdb_basics = (
 
 imdb_basics_silver = (
     imdb_basics
+
     .select(
         col("tconst")
         .alias("imdb_id"),
@@ -509,13 +532,13 @@ imdb_basics_silver = (
         col("originalTitle")
         .alias("original_title"),
 
-        col("startYear")
-        .cast("int")
-        .alias("year"),
+        expr(
+            "try_cast(startYear AS INT)"
+        ).alias("year"),
 
-        col("runtimeMinutes")
-        .cast("int")
-        .alias("runtime_minutes"),
+        expr(
+            "try_cast(runtimeMinutes AS INT)"
+        ).alias("runtime_minutes"),
 
         col("genres"),
 
@@ -585,17 +608,18 @@ imdb_ratings = (
 
 imdb_ratings_silver = (
     imdb_ratings
+
     .select(
         col("tconst")
         .alias("imdb_id"),
 
-        col("averageRating")
-        .cast("double")
-        .alias("score_10"),
+        expr(
+            "try_cast(averageRating AS DOUBLE)"
+        ).alias("score_10"),
 
-        col("numVotes")
-        .cast("long")
-        .alias("vote_count"),
+        expr(
+            "try_cast(numVotes AS BIGINT)"
+        ).alias("vote_count"),
 
         col("ingestion_date"),
     )
@@ -633,6 +657,7 @@ anilist = spark.table(
 
 anime_master = (
     tenrai.alias("t")
+
     .join(
         anilist.alias("a"),
         col("t.mal_id")
@@ -679,6 +704,11 @@ anime_master = (
         .alias("anilist_score"),
 
         coalesce(
+            col("t.popularity"),
+            col("a.popularity"),
+        ).alias("popularity"),
+
+        coalesce(
             col("t.genres"),
             col("a.genres"),
         ).alias("genres"),
@@ -703,9 +733,10 @@ anime_master = (
             col("a.release_decade"),
         ).alias("release_decade"),
 
-        (
-            col("t.is_airing")
-            | col("a.is_airing")
+        coalesce(
+            col("t.is_airing"),
+            col("a.is_airing"),
+            lit(False),
         ).alias("is_airing"),
 
         current_timestamp()
@@ -714,10 +745,6 @@ anime_master = (
 
     .filter(
         col("title").isNotNull()
-    )
-
-    .dropDuplicates(
-        ["mal_id"]
     )
 )
 
