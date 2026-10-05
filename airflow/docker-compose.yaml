@@ -30,9 +30,6 @@ services:
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: >-
         postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres/${POSTGRES_DB}
       PYTHONPATH: /opt/airflow
-      _PIP_ADDITIONAL_REQUIREMENTS: >-
-        requests
-        apache-airflow-providers-databricks
     volumes:
       - ./dags:/opt/airflow/dags
       - ./include:/opt/airflow/include
@@ -77,9 +74,6 @@ services:
       DATABRICKS_SCHEMA: ${DATABRICKS_SCHEMA}
       DATABRICKS_VOLUME: ${DATABRICKS_VOLUME}
 
-      _PIP_ADDITIONAL_REQUIREMENTS: >-
-        requests
-        apache-airflow-providers-databricks
     volumes:
       - ./dags:/opt/airflow/dags
       - ./include:/opt/airflow/include
@@ -113,9 +107,6 @@ services:
       DATABRICKS_SCHEMA: ${DATABRICKS_SCHEMA}
       DATABRICKS_VOLUME: ${DATABRICKS_VOLUME}
 
-      _PIP_ADDITIONAL_REQUIREMENTS: >-
-        requests
-        apache-airflow-providers-databricks
     volumes:
       - ./dags:/opt/airflow/dags
       - ./include:/opt/airflow/include
