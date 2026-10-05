@@ -57,6 +57,9 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: >-
@@ -94,6 +97,9 @@ services:
         condition: service_completed_successfully
       minio:
         condition: service_started
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: >-
@@ -125,6 +131,9 @@ services:
         condition: service_completed_successfully
       minio:
         condition: service_started
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: >-

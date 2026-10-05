@@ -3,7 +3,7 @@ from airflow.decorators import task
 from datetime import datetime, timedelta
 import os
 
-from include.clients.jikan_client import fetch_jikan_anime
+from include.clients.tenrai_client import fetch_tenrai_anime
 from include.clients.anilist_client import fetch_anilist_anime
 from include.clients.tmdb_client import fetch_tmdb_anime
 from include.clients.imdb_client import download_imdb_dataset
@@ -13,7 +13,9 @@ from include.storage.s3 import (
     upload_file_to_s3,
 )
 
+
 S3_BUCKET = os.getenv("S3_BUCKET")
+
 
 default_args = {
     "owner": "anime",
@@ -21,22 +23,28 @@ default_args = {
     "retry_delay": timedelta(minutes=2),
 }
 
+
 with DAG(
     dag_id="anime_ingestion_pipeline",
     start_date=datetime(2026, 10, 1),
     schedule="@daily",
     catchup=False,
     default_args=default_args,
-    tags=["anime", "ingestion", "minio"],
+    tags=[
+        "anime",
+        "ingestion",
+        "minio",
+    ],
 ) as dag:
 
     @task
-    def jikan_to_minio(ds=None):
-        payload = fetch_jikan_anime()
+    def tenrai_to_minio(ds=None):
+        payload = fetch_tenrai_anime()
+
         payload["ingestion_date"] = ds
 
         key = (
-            f"raw/jikan/"
+            f"raw/tenrai/"
             f"ingestion_date={ds}/"
             f"anime.json"
         )
@@ -49,9 +57,11 @@ with DAG(
 
         return key
 
+
     @task
     def anilist_to_minio(ds=None):
         payload = fetch_anilist_anime()
+
         payload["ingestion_date"] = ds
 
         key = (
@@ -68,9 +78,11 @@ with DAG(
 
         return key
 
+
     @task
     def tmdb_to_minio(ds=None):
         payload = fetch_tmdb_anime()
+
         payload["ingestion_date"] = ds
 
         key = (
@@ -87,6 +99,7 @@ with DAG(
 
         return key
 
+
     @task
     def imdb_to_minio(ds=None):
         datasets = [
@@ -97,7 +110,9 @@ with DAG(
         uploaded_files = []
 
         for dataset in datasets:
-            file_path = download_imdb_dataset(dataset)
+            file_path = download_imdb_dataset(
+                dataset
+            )
 
             key = (
                 f"raw/imdb/"
@@ -111,11 +126,14 @@ with DAG(
                 key=key,
             )
 
-            uploaded_files.append(key)
+            uploaded_files.append(
+                key
+            )
 
         return uploaded_files
 
-    jikan_task = jikan_to_minio()
+
+    tenrai_task = tenrai_to_minio()
     anilist_task = anilist_to_minio()
     tmdb_task = tmdb_to_minio()
     imdb_task = imdb_to_minio()
