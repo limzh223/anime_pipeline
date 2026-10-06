@@ -7,10 +7,10 @@ from pyspark.sql.functions import (
     expr,
     lit,
     lower,
-    trim,
-    when,
     regexp_replace,
     to_date,
+    trim,
+    when,
 )
 
 
@@ -57,6 +57,10 @@ def merge_to_silver(
         )
 
 
+# ============================================================
+# TENRAI
+# ============================================================
+
 tenrai_bronze = (
     spark.table(
         "anime_project.bronze.tenrai_anime_raw"
@@ -82,7 +86,7 @@ tenrai_silver = (
         ).alias("title"),
 
         col("anime.title_japanese")
-        .alias("title_japanese"),
+        .alias("native_title"),
 
         col("anime.type")
         .alias("format"),
@@ -138,11 +142,18 @@ tenrai_silver = (
     )
 
     .withColumn(
+        "native_title",
+        trim(col("native_title"))
+    )
+
+    .withColumn(
         "description",
-        regexp_replace(
-            col("description"),
-            "<[^>]+>",
-            ""
+        trim(
+            regexp_replace(
+                col("description"),
+                "<[^>]+>",
+                ""
+            )
         )
     )
 
@@ -163,7 +174,10 @@ tenrai_silver = (
     .withColumn(
         "is_airing",
         when(
-            col("status").contains("airing"),
+            col("status").isin(
+                "currently airing",
+                "airing",
+            ),
             True
         ).otherwise(False)
     )
@@ -212,6 +226,10 @@ merge_to_silver(
 )
 
 
+# ============================================================
+# ANILIST
+# ============================================================
+
 anilist_bronze = (
     spark.table(
         "anime_project.bronze.anilist_anime_raw"
@@ -241,7 +259,7 @@ anilist_silver = (
         ).alias("title"),
 
         col("anime.title.native")
-        .alias("title_native"),
+        .alias("native_title"),
 
         col("anime.format")
         .alias("format"),
@@ -291,11 +309,18 @@ anilist_silver = (
     )
 
     .withColumn(
+        "native_title",
+        trim(col("native_title"))
+    )
+
+    .withColumn(
         "description",
-        regexp_replace(
-            col("description"),
-            "<[^>]+>",
-            ""
+        trim(
+            regexp_replace(
+                col("description"),
+                "<[^>]+>",
+                ""
+            )
         )
     )
 
@@ -321,7 +346,7 @@ anilist_silver = (
     .withColumn(
         "is_airing",
         when(
-            col("status").contains("releasing"),
+            col("status") == "releasing",
             True
         ).otherwise(False)
     )
@@ -369,6 +394,10 @@ merge_to_silver(
     "target.anilist_id = source.anilist_id",
 )
 
+
+# ============================================================
+# TMDB
+# ============================================================
 
 tmdb_bronze = (
     spark.table(
@@ -471,10 +500,9 @@ tmdb_silver = (
 
     .withColumn(
         "year",
-        col("release_date")
-        .cast("string")
-        .substr(1, 4)
-        .cast("int")
+        expr(
+            "try_cast(year(release_date) AS INT)"
+        )
     )
 
     .withColumn(
@@ -504,6 +532,10 @@ merge_to_silver(
     """,
 )
 
+
+# ============================================================
+# IMDB TITLE BASICS
+# ============================================================
 
 imdb_basics = (
     spark.table(
@@ -595,6 +627,10 @@ merge_to_silver(
 )
 
 
+# ============================================================
+# IMDB RATINGS
+# ============================================================
+
 imdb_ratings = (
     spark.table(
         "anime_project.bronze.imdb_title_ratings_raw"
@@ -646,6 +682,10 @@ merge_to_silver(
 )
 
 
+# ============================================================
+# ANIME MASTER
+# ============================================================
+
 tenrai = spark.table(
     "anime_project.silver.tenrai_anime"
 )
@@ -678,9 +718,10 @@ anime_master = (
             col("a.title"),
         ).alias("title"),
 
-        col("t.title_japanese"),
-
-        col("a.title_native"),
+        coalesce(
+            col("t.native_title"),
+            col("a.native_title"),
+        ).alias("native_title"),
 
         coalesce(
             col("t.format"),
@@ -697,6 +738,32 @@ anime_master = (
             col("a.status"),
         ).alias("status"),
 
+        coalesce(
+            col("t.is_airing"),
+            col("a.is_airing"),
+            lit(False),
+        ).alias("is_airing"),
+
+        coalesce(
+            col("t.year"),
+            col("a.year"),
+        ).alias("year"),
+
+        coalesce(
+            col("t.release_decade"),
+            col("a.release_decade"),
+        ).alias("release_decade"),
+
+        coalesce(
+            col("t.episode_category"),
+            col("a.episode_category"),
+        ).alias("episode_category"),
+
+        coalesce(
+            col("t.genres"),
+            col("a.genres"),
+        ).alias("genres"),
+
         col("t.score_10")
         .alias("mal_score"),
 
@@ -709,35 +776,9 @@ anime_master = (
         ).alias("popularity"),
 
         coalesce(
-            col("t.genres"),
-            col("a.genres"),
-        ).alias("genres"),
-
-        coalesce(
             col("t.description"),
             col("a.description"),
         ).alias("description"),
-
-        coalesce(
-            col("t.year"),
-            col("a.year"),
-        ).alias("year"),
-
-        coalesce(
-            col("t.episode_category"),
-            col("a.episode_category"),
-        ).alias("episode_category"),
-
-        coalesce(
-            col("t.release_decade"),
-            col("a.release_decade"),
-        ).alias("release_decade"),
-
-        coalesce(
-            col("t.is_airing"),
-            col("a.is_airing"),
-            lit(False),
-        ).alias("is_airing"),
 
         current_timestamp()
         .alias("_updated_at"),
@@ -753,6 +794,10 @@ anime_master = (
     anime_master.write
     .format("delta")
     .mode("overwrite")
+    .option(
+        "overwriteSchema",
+        "true"
+    )
     .saveAsTable(
         "anime_project.silver.anime_master"
     )

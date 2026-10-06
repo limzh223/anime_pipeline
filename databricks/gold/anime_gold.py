@@ -1,12 +1,11 @@
 from pyspark.sql.functions import (
+    array_join,
     col,
-    coalesce,
+    concat_ws,
+    current_timestamp,
     lit,
     round,
-    array_join,
-    concat_ws,
     when,
-    current_timestamp,
 )
 
 
@@ -28,22 +27,18 @@ anime_gold = (
             when(
                 col("mal_score").isNotNull()
                 & col("anilist_score").isNotNull(),
-
                 (
                     col("mal_score")
                     + col("anilist_score")
                 ) / 2
             )
-
             .when(
                 col("mal_score").isNotNull(),
                 col("mal_score")
             )
-
             .otherwise(
                 col("anilist_score")
             ),
-
             2,
         )
     )
@@ -80,7 +75,17 @@ anime_gold = (
         concat_ws(
             " | ",
 
-            col("title"),
+            concat_ws(
+                "",
+                lit("Title: "),
+                col("title"),
+            ),
+
+            concat_ws(
+                "",
+                lit("Native Title: "),
+                col("native_title"),
+            ),
 
             concat_ws(
                 "",
@@ -97,8 +102,7 @@ anime_gold = (
             concat_ws(
                 "",
                 lit("Episodes: "),
-                col("episodes")
-                .cast("string"),
+                col("episodes").cast("string"),
             ),
 
             concat_ws(
@@ -110,18 +114,20 @@ anime_gold = (
             concat_ws(
                 "",
                 lit("Year: "),
-                col("year")
-                .cast("string"),
+                col("year").cast("string"),
             ),
 
             concat_ws(
                 "",
                 lit("Score: "),
-                col("combined_score")
-                .cast("string"),
+                col("combined_score").cast("string"),
             ),
 
-            col("description"),
+            concat_ws(
+                "",
+                lit("Description: "),
+                col("description"),
+            ),
         )
     )
 
@@ -133,24 +139,33 @@ anime_gold = (
     .select(
         "mal_id",
         "anilist_id",
+
         "title",
-        "title_japanese",
-        "title_native",
+        "native_title",
+
         "format",
         "episodes",
         "episode_category",
+
         "status",
         "is_airing",
+
         "year",
         "release_decade",
+
         "genres",
         "genre_text",
+
         "mal_score",
         "anilist_score",
         "combined_score",
         "recommendation_tier",
+
+        "popularity",
+
         "description",
         "llm_context",
+
         "_generated_at",
     )
 )
@@ -160,6 +175,10 @@ anime_gold = (
     anime_gold.write
     .format("delta")
     .mode("overwrite")
+    .option(
+        "overwriteSchema",
+        "true"
+    )
     .saveAsTable(
         "anime_project.gold.anime_recommendations"
     )

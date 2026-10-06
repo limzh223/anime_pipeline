@@ -51,3 +51,5 @@ Gold
 → Recommendation features
 → LLM-ready context
 → Prepared for SQL, vector search, RAG, and AI agent usage
+
+## Data Flow
