@@ -53,4 +53,4 @@ Gold
 → Prepared for SQL, vector search, RAG, and AI agent usage
 
 ## Data Flow
-![Data Flow Diagram](data_flow_diagram.png)
+![Data Flow Diagram](Data%20Flow%20diagram.png)
