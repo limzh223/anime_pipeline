@@ -2,7 +2,7 @@
 
 ## Overview
 
-The AI part is not done yet.
+This is Day 2 of my Databricks & AI project. The AI component is not implemented yet, as I am currently focusing on applying good data lakehouse practices and building a solid data engineering foundation first.
 
 Anime Data Platform is an end-to-end data engineering and AI project that ingests anime data from multiple sources, processes the data using Databricks and the Medallion Architecture, and prepares curated datasets for an AI-powered anime recommendation and watch-link application.
 
