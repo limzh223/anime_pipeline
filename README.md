@@ -27,30 +27,8 @@ The main idea is to build a reliable data platform first, then use the curated d
 
 I created this project because anime with english subtitles are often taken down or the video is loading too slow.
 
-## Medallion Architecture
-
-Bronze
-→ Raw ingestion
-→ Minimal transformation
-→ Preserve source data
-→ Add ingestion metadata
-
-Silver
-→ Data cleaning
-→ Standardization
-→ Normalization
-→ Type casting
-→ Deduplication
-→ Derived columns
-→ Data enrichment
-→ MERGE / UPSERT
-
-Gold
-→ Curated recommendation dataset
-→ Combined scores
-→ Recommendation features
-→ LLM-ready context
-→ Prepared for SQL, vector search, RAG, and AI agent usage
+## Project Architecture
+![ProjectArchitecture](ProjectArchitecture.png)
 
 ## Data Flow
 ![Data Flow Diagram](Data%20Flow%20diagram.png)
